@@ -1,0 +1,29 @@
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<form th:object="${name}" th:action="@{/}" method="get">
+    <input type="text" name="name" th:value="@{name}" placeholder="Enter city name">
+
+    <div th:if="${not #lists.isEmpty(cities)}">
+        <table>
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>District</th>
+                <th style="text-align: right">Inhabitants</th>
+            </tr>
+            </thead>
+            <tbody>
+                <tr th:each="city : ${cities}">
+                    <td th:text="${city.name}"></td>
+                    <td th:text="${city.district}"></td>
+                    <td th:text="${city.inhabitants}" style="text-align: right"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div th:if="${#lists.isEmpty(cities)}">
+        <h5>No results found</h5>
+    </div>
+</form>
+</body>
+</html>

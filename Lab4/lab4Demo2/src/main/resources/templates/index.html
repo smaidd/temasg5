@@ -1,0 +1,23 @@
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<form id="countingForm" th:action="@{/}" method="get">
+    <table>
+        <tr>
+            <td><b>Application counter</b></td>
+            <td align="right" th:text="${applicationCounter}"></td>
+        </tr>
+        <tr>
+            <td><b>Session counter</b></td>
+            <td align="right" th:text="${sessionCounter}"></td>
+        </tr>
+        <tr>
+            <td><b>Request counter</b></td>
+            <td align="right" th:text="${requestCounter}"></td>
+        </tr>
+    </table>
+</form>
+<script>
+    setTimeout('document.getElementById("countingForm").submit()', 1000);
+</script>
+</body>
+</html>
