@@ -44,27 +44,30 @@ public class PaymentControllerIntegrationTests {
     private static List<AccountModel> receiverAccounts;
 
     @BeforeAll
-    public static void setup(){
-       sender = new UserModel(id(), "John", "Doe", "john.doe@gmail.com", "password");
-       receiver = new UserModel(id(), "Ion", "Popescu", "ion.popescu@yahoo.com", "parola");
-       senderAccounts = new ArrayList<>();
-       senderAccounts.add(new AccountModel(id(), sender.getId(), AccountModel.Currency.EUR, 10000));
-       senderAccounts.add(new AccountModel(id(), sender.getId(), AccountModel.Currency.USD, 10000));
-       receiverAccounts = new ArrayList<>();
-       receiverAccounts.add(new AccountModel(id(), receiver.getId(), AccountModel.Currency.EUR, 10000));
-       receiverAccounts.add(new AccountModel(id(), receiver.getId(), AccountModel.Currency.USD, 10000));
+    public static void setup() {
+        sender = new UserModel(id(), "John", "Doe", "john.doe@gmail.com", "password");
+        receiver = new UserModel(id(), "Ion", "Popescu", "ion.popescu@yahoo.com", "parola");
+        senderAccounts = new ArrayList<>();
+        senderAccounts.add(new AccountModel(id(), sender.getId(), AccountModel.Currency.EUR, 10000));
+        senderAccounts.add(new AccountModel(id(), sender.getId(), AccountModel.Currency.USD, 10000));
+        receiverAccounts = new ArrayList<>();
+        receiverAccounts.add(new AccountModel(id(), receiver.getId(), AccountModel.Currency.EUR, 10000));
+        receiverAccounts.add(new AccountModel(id(), receiver.getId(), AccountModel.Currency.USD, 10000));
     }
-    private static String id(){
+
+    private static String id() {
         return UUID.randomUUID().toString();
     }
 
-    private static String credentials(String email, String password){
+    private static String credentials(String email, String password) {
         return String.format("Basic %s",
                 Base64.getEncoder().encodeToString(String.format("%s:%s", email, password).getBytes()));
     }
-    private static String credentials(UserModel user){
+
+    private static String credentials(UserModel user) {
         return credentials(user.getEmail(), user.getPassword());
     }
+
     @Test
     public void getAccounts() throws Exception {
         when(repository.getUser("dummy")).thenReturn(Optional.empty());
@@ -95,40 +98,124 @@ public class PaymentControllerIntegrationTests {
         when(repository.savePayment(any())).thenReturn(true);
         String endpoint = "/api/payments?receiver=%s&currency=%s&amount=%f";
         mockMvc.perform(MockMvcRequestBuilders.post(
-                String.format(endpoint, receiver.getEmail(), senderAccounts.get(0).getCurrency(), 10* senderAccounts.get(0).getAmount()))
+                String.format(endpoint, receiver.getEmail(), senderAccounts.get(0).getCurrency(), 10 * senderAccounts.get(0).getAmount()))
                 .header((Credentials.AUTHORIZATION), credentials(sender)))
                 .andExpect(MockMvcResultMatchers.status().isInternalServerError())
                 .andExpect(MockMvcResultMatchers.jsonPath("$").value(PaymentException.accountHasNotEnoughAmountForPayment().toString()));
 
         mockMvc.perform(MockMvcRequestBuilders.post(
-                String.format(endpoint, receiver.getEmail(), senderAccounts.get(0).getCurrency(), senderAccounts.get(0).getAmount()/10))
+                String.format(endpoint, receiver.getEmail(), senderAccounts.get(0).getCurrency(), senderAccounts.get(0).getAmount() / 10))
                 .header((Credentials.AUTHORIZATION), credentials(sender)))
                 .andExpect(MockMvcResultMatchers.status().isAccepted());
 
-      }
-      @Test
-      public void testSaveUser() throws Exception {
-        String endpoint ="/api/users";
-          mockMvc.perform(MockMvcRequestBuilders.post(endpoint)
-                  .header((Credentials.AUTHORIZATION), credentials(sender))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(objectMapper.writeValueAsString(sender)))
-                  .andExpect(MockMvcResultMatchers.status().isForbidden());
+    }
 
-          when(repository.getUser(sender.getEmail())).thenReturn(Optional.of(receiver));
-          mockMvc.perform(MockMvcRequestBuilders.post(endpoint)
-                  .header((Credentials.AUTHORIZATION), credentials(adminEmail, adminPassword))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(objectMapper.writeValueAsString(sender)))
-                  .andExpect(MockMvcResultMatchers.status().isInternalServerError())
-                  .andExpect(MockMvcResultMatchers.jsonPath("$").value(PaymentException.userWithSameEmailAlreadyExists().toString()));
+    @Test
+    public void testSaveUser() throws Exception {
+        String endpoint = "/api/users";
+        mockMvc.perform(MockMvcRequestBuilders.post(endpoint)
+                .header((Credentials.AUTHORIZATION), credentials(sender))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(sender)))
+                .andExpect(MockMvcResultMatchers.status().isForbidden());
 
-          when(repository.getUser(sender.getEmail())).thenReturn(Optional.of(sender));
-          when(repository.saveUser(any())).thenReturn(true);
-          mockMvc.perform(MockMvcRequestBuilders.post(endpoint)
-                  .header((Credentials.AUTHORIZATION), credentials(adminEmail, adminPassword))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(objectMapper.writeValueAsString(sender)))
-                  .andExpect(MockMvcResultMatchers.status().isAccepted());
-     }
+        when(repository.getUser(sender.getEmail())).thenReturn(Optional.of(receiver));
+        mockMvc.perform(MockMvcRequestBuilders.post(endpoint)
+                .header((Credentials.AUTHORIZATION), credentials(adminEmail, adminPassword))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(sender)))
+                .andExpect(MockMvcResultMatchers.status().isInternalServerError())
+                .andExpect(MockMvcResultMatchers.jsonPath("$").value(PaymentException.userWithSameEmailAlreadyExists().toString()));
+
+        when(repository.getUser(sender.getEmail())).thenReturn(Optional.of(sender));
+        when(repository.saveUser(any())).thenReturn(true);
+        mockMvc.perform(MockMvcRequestBuilders.post(endpoint)
+                .header((Credentials.AUTHORIZATION), credentials(adminEmail, adminPassword))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(sender)))
+                .andExpect(MockMvcResultMatchers.jsonPath("$").value(PaymentException.userWithSameEmailAlreadyExists().toString()));
+    }
+
+    /**
+     * DE AICI INCEPE TEMA
+     * ALEXANDRU IONITA 405
+     */
+
+    @Test
+    public void deleteUserTest() throws Exception {
+        String endpoint = "/api/users";
+
+        mockMvc.perform(MockMvcRequestBuilders.delete(endpoint)
+                .header((Credentials.AUTHORIZATION), credentials(sender))
+                .param("email", "email_neexistent@test.ro"))
+                .andExpect(MockMvcResultMatchers.status().isForbidden())
+                .andExpect(MockMvcResultMatchers.jsonPath("$").value(PaymentException.badCredentials().toString()));
+
+
+        mockMvc.perform(MockMvcRequestBuilders.delete(endpoint)
+                .header((Credentials.AUTHORIZATION), credentials(adminEmail, adminPassword))
+                .param("email", "email_neexistent@test.ro"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$").value(PaymentException.userCouldNotBeRemoved().toString()));
+
+
+        when(repository.removeUser(any())).thenReturn(true);
+        mockMvc.perform(MockMvcRequestBuilders.delete(endpoint)
+                .header((Credentials.AUTHORIZATION), credentials(adminEmail, adminPassword))
+                .param("email", sender.getEmail()))
+                .andExpect(MockMvcResultMatchers.status().isAccepted());
+    }
+
+    @Test
+    public void saveAccountTest() throws Exception {
+        String endpoint = "/api/accounts";
+
+        mockMvc.perform(MockMvcRequestBuilders.put(endpoint)
+                .header((Credentials.AUTHORIZATION), credentials(sender))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(senderAccounts.get(0))))
+                .andExpect(MockMvcResultMatchers.status().isForbidden())
+                .andExpect(MockMvcResultMatchers.jsonPath("$").value(PaymentException.badCredentials().toString()));
+
+        when(repository.saveAccount(any())).thenReturn(false);
+        mockMvc.perform(MockMvcRequestBuilders.put(endpoint)
+                .header((Credentials.AUTHORIZATION), credentials(adminEmail, adminPassword))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(senderAccounts.get(0))))
+                .andExpect(MockMvcResultMatchers.jsonPath("$").value(PaymentException.accountCouldNotBeSaved().toString()));
+
+        when(repository.saveAccount(any())).thenReturn(true);
+        mockMvc.perform(MockMvcRequestBuilders.put(endpoint)
+                .header((Credentials.AUTHORIZATION), credentials(adminEmail, adminPassword))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(senderAccounts.get(0))))
+                .andExpect(MockMvcResultMatchers.status().isAccepted());
+    }
+
+    @Test
+    public void deleteAccountTest() throws Exception {
+        String endpoint = "/api/accounts";
+
+        mockMvc.perform(MockMvcRequestBuilders.delete(endpoint)
+                .header((Credentials.AUTHORIZATION), credentials(sender))
+                .param("email", "email_neexistent@test.ro")
+                .param("currency", "USD"))
+                .andExpect(MockMvcResultMatchers.status().isForbidden())
+                .andExpect(MockMvcResultMatchers.jsonPath("$").value(PaymentException.badCredentials().toString()));
+
+        when(repository.removeAccount(any(), any())).thenReturn(false);
+        mockMvc.perform(MockMvcRequestBuilders.delete(endpoint)
+                .header((Credentials.AUTHORIZATION), credentials(adminEmail, adminPassword))
+                .param("email", adminEmail)
+                .param("currency", "USD"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$").value(PaymentException.accountCouldNotBeRemoved().toString()));
+
+        when(repository.removeAccount(any(), any())).thenReturn(true);
+        mockMvc.perform(MockMvcRequestBuilders.delete(endpoint)
+                .header((Credentials.AUTHORIZATION), credentials(adminEmail, adminPassword))
+                .param("email", adminEmail)
+                .param("currency", "USD"))
+                .andExpect(MockMvcResultMatchers.status().isAccepted());
+    }
+
+
 }
